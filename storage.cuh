@@ -3,25 +3,7 @@
 #include <assert.h>
 #include <type_traits>
 #include <sstream>
-
-template <typename TError>
-void checkCudaError(TError result)
-{
-    if (result != cudaSuccess)
-    {
-        std::cerr << "CUDA error: " << cudaGetErrorName(result) << "\n";
-    }
-}
-
-std::string ptr2str(double *ptr)
-{
-    std::stringstream ss;
-    if (ptr == nullptr)
-        ss << "nullptr";
-    else
-        ss << ptr;
-    return ss.str();
-}
+#include "utility.cuh"
 
 __global__ void kern_dprint(size_t size, double* data)
 {
@@ -44,6 +26,18 @@ public:
     {
         m_hptr = nullptr;
         m_dptr = nullptr;
+    }
+
+    ~Storage()
+    {
+        if (m_hptr != nullptr)
+        {
+            free_cpu();
+        }
+        if (m_dptr != nullptr)
+        {
+            free_gpu();
+        }
     }
 
     void allocate_cpu()
@@ -83,13 +77,25 @@ public:
         checkCudaError(cudaMemcpy((void*)m_hptr, (void*)m_dptr, m_size * sizeof(TData), cudaMemcpyDeviceToHost));
     }
 
+    bool on_cpu()
+    {
+        return (m_hptr != nullptr);
+    }
+
+    bool on_gpu()
+    {
+        return (m_dptr != nullptr);
+    }
+
     TData *hptr()
     {
+        assert(m_hptr != nullptr);
         return m_hptr;
     }
 
     TData *dptr()
     {
+        assert(m_dptr != nullptr);
         return m_dptr;
     }
 
